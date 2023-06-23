@@ -9,7 +9,7 @@ import 'tables.dart';
 
 part 'my_database.g.dart';
 
-@DriftDatabase(tables: [TasksTbl])
+@DriftDatabase(tables: [TasksTbl], daos: [TaskDao])
 class MyDatabase extends _$MyDatabase {
   // we tell the database where to store the data with this constructor
   MyDatabase() : super(_openConnection());
@@ -18,13 +18,6 @@ class MyDatabase extends _$MyDatabase {
   // Migrations are covered later in the documentation.
   @override
   int get schemaVersion => 1;
-
-  Future<List<TaskEntity>> getAllTasks() => select(tasksTbl).get();
-  Stream<List<TaskEntity>> watchAllTasks() => select(tasksTbl).watch();
-  Future insertTask(Insertable<TaskEntity> entity) =>
-      into(tasksTbl).insert(entity);
-  Future updateTask(TaskEntity entity) => update(tasksTbl).replace(entity);
-  Future deleteTask(TaskEntity entity) => delete(tasksTbl).delete(entity);
 }
 
 LazyDatabase _openConnection() {
@@ -36,4 +29,46 @@ LazyDatabase _openConnection() {
     final file = File(p.join(dbFolder.path, 'db.sqlite'));
     return NativeDatabase.createInBackground(file, logStatements: true);
   });
+}
+
+@DriftAccessor(tables: [TasksTbl])
+class TaskDao extends DatabaseAccessor<MyDatabase> with _$TaskDaoMixin {
+  final MyDatabase db;
+
+  TaskDao(this.db) : super(db);
+
+  Future<List<TaskEntity>> getAllTasks() => select(tasksTbl).get();
+  Stream<List<TaskEntity>> watchAllTasks() {
+    return (select(tasksTbl)
+          ..orderBy([
+            (tbl) =>
+                OrderingTerm(expression: tbl.dueDate, mode: OrderingMode.desc),
+            (tbl) =>
+                OrderingTerm(expression: tbl.title, mode: OrderingMode.asc),
+          ]))
+        .watch();
+  }
+
+  Stream<List<TaskEntity>> watchCompletedTasks() {
+    return (select(tasksTbl)
+          ..orderBy([
+            (tbl) => OrderingTerm(
+                  expression: tbl.dueDate,
+                  mode: OrderingMode.desc,
+                ),
+            (tbl) => OrderingTerm(
+                  expression: tbl.title,
+                  mode: OrderingMode.asc,
+                ),
+          ])
+          ..where((tbl) => tbl.isCompleted.equals(true)))
+        .watch();
+  }
+
+  Future insertTask(Insertable<TaskEntity> entity) =>
+      into(tasksTbl).insert(entity);
+  Future updateTask(Insertable<TaskEntity> entity) =>
+      update(tasksTbl).replace(entity);
+  Future deleteTask(Insertable<TaskEntity> entity) =>
+      delete(tasksTbl).delete(entity);
 }
