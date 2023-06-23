@@ -18,6 +18,13 @@ class MyDatabase extends _$MyDatabase {
   // Migrations are covered later in the documentation.
   @override
   int get schemaVersion => 1;
+
+  Future<List<TaskEntity>> getAllTasks() => select(tasksTbl).get();
+  Stream<List<TaskEntity>> watchAllTasks() => select(tasksTbl).watch();
+  Future insertTask(Insertable<TaskEntity> entity) =>
+      into(tasksTbl).insert(entity);
+  Future updateTask(TaskEntity entity) => update(tasksTbl).replace(entity);
+  Future deleteTask(TaskEntity entity) => delete(tasksTbl).delete(entity);
 }
 
 LazyDatabase _openConnection() {
