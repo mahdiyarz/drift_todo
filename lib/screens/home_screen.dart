@@ -12,11 +12,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool showCompleted = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tasks'),
+        actions: [_buildCompletedSwitch()],
       ),
       body: Column(children: [
         Expanded(child: _buildTaskList(context)),
@@ -29,7 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final taskDao = Provider.of<TaskDao>(context, listen: false);
 
     return StreamBuilder(
-      stream: taskDao.watchAllTasks(),
+      stream: !showCompleted
+          ? taskDao.watchAllTasks()
+          : taskDao.watchCompletedTasks(),
       builder: (context, AsyncSnapshot<List<TaskEntity>> snapshot) {
         final tasks = snapshot.data ?? List.empty();
 
@@ -64,6 +69,23 @@ class _HomeScreenState extends State<HomeScreen> {
           itemTask.copyWith(isCompleted: value),
         ),
       ),
+    );
+  }
+
+  Row _buildCompletedSwitch() {
+    return Row(
+      children: [
+        const Text('Show Compeleted'),
+        Switch(
+          value: showCompleted,
+          activeColor: Colors.white,
+          onChanged: (value) {
+            setState(() {
+              showCompleted = value;
+            });
+          },
+        )
+      ],
     );
   }
 }
