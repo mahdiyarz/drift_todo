@@ -26,10 +26,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _buildTaskList(BuildContext context) {
-    final db = Provider.of<MyDatabase>(context, listen: false);
+    final taskDao = Provider.of<TaskDao>(context, listen: false);
 
     return StreamBuilder(
-      stream: db.watchAllTasks(),
+      stream: taskDao.watchAllTasks(),
       builder: (context, AsyncSnapshot<List<TaskEntity>> snapshot) {
         final tasks = snapshot.data ?? List.empty();
 
@@ -38,18 +38,18 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, index) {
             final itemTask = tasks[index];
 
-            return _buildListItem(itemTask, db);
+            return _buildListItem(itemTask, taskDao);
           },
         );
       },
     );
   }
 
-  _buildListItem(TaskEntity itemTask, MyDatabase db) {
+  _buildListItem(TaskEntity itemTask, TaskDao taskDao) {
     return Slidable(
       startActionPane: ActionPane(motion: const ScrollMotion(), children: [
         SlidableAction(
-          onPressed: (context) {},
+          onPressed: (context) => taskDao.deleteTask(itemTask),
           backgroundColor: const Color(0xFFFE4A49),
           foregroundColor: Colors.white,
           icon: Icons.delete,
@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(itemTask.title),
         subtitle: Text(itemTask.dueDate?.toString() ?? 'No date'),
         value: itemTask.isCompleted,
-        onChanged: (value) => db.updateTask(
+        onChanged: (value) => taskDao.updateTask(
           itemTask.copyWith(isCompleted: value),
         ),
       ),
@@ -99,13 +99,13 @@ class _NewTaskInputState extends State<NewTaskInput> {
         controller: _controller,
         decoration: const InputDecoration(hintText: 'Task Title'),
         onSubmitted: (value) {
-          final db = Provider.of<MyDatabase>(context, listen: false);
+          final taskDao = Provider.of<TaskDao>(context, listen: false);
           final task = TasksTblCompanion(
             title: dr.Value(value),
             dueDate: dr.Value(newTaskDate),
           );
 
-          db.insertTask(task);
+          taskDao.insertTask(task);
           resetValuesAfterSubmit();
         },
       ),
