@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Provider(
-      create: (context) => MyDatabase(),
+      create: (context) => MyDatabase().taskDao,
       child: const MaterialApp(
         title: 'Task Management',
         home: HomeScreen(),
