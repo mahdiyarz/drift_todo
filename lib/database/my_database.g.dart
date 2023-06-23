@@ -266,9 +266,14 @@ class TasksTblCompanion extends UpdateCompanion<TaskEntity> {
 abstract class _$MyDatabase extends GeneratedDatabase {
   _$MyDatabase(QueryExecutor e) : super(e);
   late final $TasksTblTable tasksTbl = $TasksTblTable(this);
+  late final TaskDao taskDao = TaskDao(this as MyDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [tasksTbl];
+}
+
+mixin _$TaskDaoMixin on DatabaseAccessor<MyDatabase> {
+  $TasksTblTable get tasksTbl => attachedDatabase.tasksTbl;
 }
