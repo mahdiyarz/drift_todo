@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -9,7 +10,20 @@ import 'tables.dart';
 
 part 'my_database.g.dart';
 
-@DriftDatabase(tables: [TasksTbl], daos: [TaskDao])
+class TaskWithTag {
+  final TaskEntity task;
+  final TagEntity tag;
+
+  TaskWithTag({
+    required this.task,
+    required this.tag,
+  });
+}
+
+@DriftDatabase(
+  tables: [TasksTbl, TagsTbl],
+  daos: [TaskDao, TagDao],
+)
 class MyDatabase extends _$MyDatabase {
   // we tell the database where to store the data with this constructor
   MyDatabase() : super(_openConnection());
@@ -17,7 +31,20 @@ class MyDatabase extends _$MyDatabase {
   // you should bump this number whenever you change or add a table definition.
   // Migrations are covered later in the documentation.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (migrator, from, to) async {
+          if (from == 1) {
+            await migrator.addColumn(tasksTbl, tasksTbl.tagId);
+            await migrator.createTable(tagsTbl);
+          }
+        },
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
+      );
 }
 
 LazyDatabase _openConnection() {
@@ -31,22 +58,62 @@ LazyDatabase _openConnection() {
   });
 }
 
-@DriftAccessor(tables: [TasksTbl])
+@DriftAccessor(tables: [TagsTbl])
+class TagDao extends DatabaseAccessor<MyDatabase> with _$TagDaoMixin {
+  final MyDatabase db;
+
+  TagDao(this.db) : super(db);
+
+  Stream<List<TagEntity>> watchAllTags() => select(tagsTbl).watch();
+  Future<List<TagEntity>> getAllTags() {
+    try {
+      return select(tagsTbl).get();
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  Future insertTag(Insertable<TagEntity> entity) {
+    try {
+      return into(tagsTbl).insert(entity);
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+}
+
+@DriftAccessor(tables: [TasksTbl, TagsTbl])
 class TaskDao extends DatabaseAccessor<MyDatabase> with _$TaskDaoMixin {
   final MyDatabase db;
 
   TaskDao(this.db) : super(db);
 
   Future<List<TaskEntity>> getAllTasks() => select(tasksTbl).get();
-  Stream<List<TaskEntity>> watchAllTasks() {
-    return (select(tasksTbl)
-          ..orderBy([
-            (tbl) =>
-                OrderingTerm(expression: tbl.dueDate, mode: OrderingMode.desc),
-            (tbl) =>
-                OrderingTerm(expression: tbl.title, mode: OrderingMode.asc),
-          ]))
-        .watch();
+
+  Stream<List<TaskWithTag>> watchAllTasks() {
+    final query = (select(tasksTbl)
+          ..orderBy(
+            [
+              (tbl) => OrderingTerm(
+                    expression: tbl.dueDate,
+                    mode: OrderingMode.desc,
+                  ),
+              (tbl) => OrderingTerm(
+                    expression: tbl.title,
+                    mode: OrderingMode.asc,
+                  ),
+            ],
+          ))
+        .join([leftOuterJoin(tagsTbl, tagsTbl.id.equalsExp(tasksTbl.tagId))]);
+
+    return query.map((row) {
+      return TaskWithTag(
+        task: row.readTable(tasksTbl),
+        tag: row.readTable(tagsTbl),
+      );
+    }).watch();
   }
 
   Stream<List<TaskEntity>> watchCompletedTasks() {
@@ -61,7 +128,7 @@ class TaskDao extends DatabaseAccessor<MyDatabase> with _$TaskDaoMixin {
                   mode: OrderingMode.asc,
                 ),
           ])
-          ..where((tbl) => tbl.isCompleted.equals(true)))
+          ..where((tbl) => tbl.isCompleted.equals(false)))
         .watch();
   }
 
@@ -72,3 +139,19 @@ class TaskDao extends DatabaseAccessor<MyDatabase> with _$TaskDaoMixin {
   Future deleteTask(Insertable<TaskEntity> entity) =>
       delete(tasksTbl).delete(entity);
 }
+
+// abstract class TasksView extends View {
+//   TasksTbl get taskTbl;
+//   TagsTbl get tagTbl;
+
+//   Expression<String> get data =>
+//       tagTbl.name + const Constant('(') + taskTbl.title + const Constant(')');
+
+//   @override
+//   Query as() => select([
+//         taskTbl.title,
+//         tagTbl.name,
+//       ])
+//           .from(taskTbl)
+//           .join([innerJoin(taskTbl, taskTbl.tagId.equalsExp(tagTbl.id))]);
+// }
