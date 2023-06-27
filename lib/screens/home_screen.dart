@@ -1,8 +1,10 @@
-import 'package:drift/drift.dart' as dr;
 import 'package:drift_todo/database/my_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
+
+import '../widgets/new_tag.dart';
+import '../widgets/new_task.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,23 +21,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tasks'),
-        actions: [_buildCompletedSwitch()],
+        // actions: [_buildCompletedSwitch()],
       ),
       body: Column(children: [
         Expanded(child: _buildTaskList(context)),
         const NewTaskInput(),
+        const NewTagInput(),
       ]),
     );
   }
 
-  _buildTaskList(BuildContext context) {
+  StreamBuilder<List<TaskWithTag>> _buildTaskList(BuildContext context) {
     final taskDao = Provider.of<TaskDao>(context, listen: false);
 
     return StreamBuilder(
-      stream: !showCompleted
-          ? taskDao.watchAllTasks()
-          : taskDao.watchCompletedTasks(),
-      builder: (context, AsyncSnapshot<List<TaskEntity>> snapshot) {
+      stream: taskDao.watchAllTasks(),
+      builder: (context, AsyncSnapshot<List<TaskWithTag>> snapshot) {
         final tasks = snapshot.data ?? List.empty();
 
         return ListView.builder(
@@ -50,11 +51,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  _buildListItem(TaskEntity itemTask, TaskDao taskDao) {
+  Column _buildTag(TagEntity tag) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (tag != null) ...[
+          Container(
+            width: 10,
+            height: 10,
+            decoration:
+                BoxDecoration(shape: BoxShape.circle, color: Color(tag.color)),
+          ),
+          Text(tag.name),
+        ]
+      ],
+    );
+  }
+
+  _buildListItem(TaskWithTag itemTask, TaskDao taskDao) {
     return Slidable(
       startActionPane: ActionPane(motion: const ScrollMotion(), children: [
         SlidableAction(
-          onPressed: (context) => taskDao.deleteTask(itemTask),
+          onPressed: (context) => taskDao.deleteTask(itemTask.task),
           backgroundColor: const Color(0xFFFE4A49),
           foregroundColor: Colors.white,
           icon: Icons.delete,
@@ -62,96 +81,31 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ]),
       child: CheckboxListTile(
-        title: Text(itemTask.title),
-        subtitle: Text(itemTask.dueDate?.toString() ?? 'No date'),
-        value: itemTask.isCompleted,
+        title: Text(itemTask.task.title),
+        subtitle: Text(itemTask.task.dueDate?.toString() ?? 'No date'),
+        secondary: _buildTag(itemTask.tag),
+        value: itemTask.task.isCompleted,
         onChanged: (value) => taskDao.updateTask(
-          itemTask.copyWith(isCompleted: value),
+          itemTask.task.copyWith(isCompleted: value),
         ),
       ),
     );
   }
 
-  Row _buildCompletedSwitch() {
-    return Row(
-      children: [
-        const Text('Show Compeleted'),
-        Switch(
-          value: showCompleted,
-          activeColor: Colors.white,
-          onChanged: (value) {
-            setState(() {
-              showCompleted = value;
-            });
-          },
-        )
-      ],
-    );
-  }
-}
-
-class NewTaskInput extends StatefulWidget {
-  const NewTaskInput({super.key});
-
-  @override
-  State<NewTaskInput> createState() => _NewTaskInputState();
-}
-
-class _NewTaskInputState extends State<NewTaskInput> {
-  DateTime? newTaskDate;
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          _buildTextField(context),
-          _buildDateButton(context),
-        ],
-      ),
-    );
-  }
-
-  Expanded _buildTextField(BuildContext context) {
-    return Expanded(
-      child: TextField(
-        controller: _controller,
-        decoration: const InputDecoration(hintText: 'Task Title'),
-        onSubmitted: (value) {
-          final taskDao = Provider.of<TaskDao>(context, listen: false);
-          final task = TasksTblCompanion(
-            title: dr.Value(value),
-            dueDate: dr.Value(newTaskDate),
-          );
-
-          taskDao.insertTask(task);
-          resetValuesAfterSubmit();
-        },
-      ),
-    );
-  }
-
-  IconButton _buildDateButton(BuildContext context) {
-    return IconButton(
-      onPressed: () async {
-        newTaskDate = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime(2010),
-          lastDate: DateTime(2050),
-        );
-      },
-      icon: const Icon(Icons.calendar_today),
-    );
-  }
-
-  void resetValuesAfterSubmit() {
-    setState(() {
-      newTaskDate = null;
-      _controller.clear();
-    });
-  }
+  // Row _buildCompletedSwitch() {
+  //   return Row(
+  //     children: [
+  //       const Text('Show Compeleted'),
+  //       Switch(
+  //         value: showCompleted,
+  //         activeColor: Colors.white,
+  //         onChanged: (value) {
+  //           setState(() {
+  //             showCompleted = value;
+  //           });
+  //         },
+  //       )
+  //     ],
+  //   );
+  // }
 }
