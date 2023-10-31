@@ -25,9 +25,6 @@ If you want to explore the updated project, you can follow these steps:
 1. Clone the repository to your local machine using the following command:
 git clone (https://github.com/mahdiyarz/drift_todo.git)
 
-less
-Copy code
-
 2. Follow the installation instructions and documentation provided in the repository's README or project files.
 
 ## Contact
@@ -36,6 +33,4 @@ If you have any questions, suggestions, or feedback, please feel free to reach o
 
 - LinkedIn: [Mahdiyar Arbabzi](https://www.linkedin.com/in/mahdiyar-arbabzi/)
 - Email: m.arbabzi@gamil.com
-
----
 
